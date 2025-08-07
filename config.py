@@ -1,3 +1,5 @@
+import json
+
 # Telegram
 TELEGRAM_TOKEN = "8101121299:AAEUKSZjhkMi6k8ccHh3PQ7xKGalW3t2b_s"
 TELEGRAM_CHAT_ID = 243580570
@@ -11,7 +13,10 @@ FACEBOOK_GROUP_URLS = [
 # Сравнение изображений
 MAX_DISTANCE = 8
 
-# Загрузка cookies из файла
-def load_cookies(path="all_cookies.txt"):
+# Путь к cookies-файлу
+COOKIES_FILE = "all_cookies.txt"
+
+# Загрузка cookies из JSON-файла
+def load_cookies(path=COOKIES_FILE):
     with open(path, "r", encoding="utf-8") as f:
-        return f.read().strip()
+        return json.load(f)
