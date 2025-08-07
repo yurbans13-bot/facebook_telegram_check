@@ -6,3 +6,4 @@ python-dotenv
 playwright
 scikit-image
 aiohttp
+beautifulsoup4
