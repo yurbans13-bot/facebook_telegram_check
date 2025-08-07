@@ -5,7 +5,7 @@ import hashlib
 import tempfile
 from playwright.async_api import async_playwright
 from PIL import Image
-from utils.image_matcher import load_image, is_similar
+from image_matcher import load_image, is_similar
 from config import FACEBOOK_GROUP_URLS
 
 async def check_groups_for_images(reference_images, cookies):
