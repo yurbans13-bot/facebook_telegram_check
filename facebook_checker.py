@@ -1,55 +1,59 @@
+import asyncio
 import os
 from pathlib import Path
-from playwright.async_api import async_playwright
-from config import FACEBOOK_GROUP_URLS
-from image_matcher import load_image, is_similar
-from bs4 import BeautifulSoup
-from PIL import Image
-import numpy as np
-import io
-import base64
 
-async def check_groups_for_images(reference_images, cookies):
+from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
+from utils.image_matcher import image_matches
+from utils.logger import logger
+from utils.telegram import send_telegram_message
+
+GROUP_URLS = [
+    "https://www.facebook.com/share/g/16tri6YkoY/",
+    "https://www.facebook.com/share/g/16ktKMdwjL/"
+]
+
+EXECUTABLE_PATH = "/opt/render/project/src/.venv/lib/python3.13/site-packages/playwright/driver/package/.local-browsers/chromium_headless_shell-1181/chrome-linux/headless_shell"
+
+
+async def check_groups_for_images(reference_images: list[Path], cookies: list[dict]) -> list[tuple[str, str]]:
     matches = []
 
+    logger.info("Запуск браузера...")
     async with async_playwright() as p:
-        # Указываем путь вручную к headless Chromium
-        chromium_path = Path.home() / ".playwright" / "chromium-1181" / "chrome-linux" / "chrome"
-
         browser = await p.chromium.launch(
             headless=True,
-            executable_path=str(chromium_path)
+            executable_path=EXECUTABLE_PATH
         )
-
         context = await browser.new_context()
         await context.add_cookies(cookies)
 
-        page = await context.new_page()
+        for group_url in GROUP_URLS:
+            page = await context.new_page()
+            logger.info(f"Проверка группы: {group_url}")
+            await page.goto(group_url, timeout=60000)
 
-        for url in FACEBOOK_GROUP_URLS:
-            try:
-                await page.goto(url, timeout=60000)
-                await page.wait_for_timeout(5000)  # дожидаемся полной загрузки
+            await page.wait_for_timeout(3000)
+            content = await page.content()
+            soup = BeautifulSoup(content, 'html.parser')
+            img_tags = soup.find_all('img')
 
-                html = await page.content()
-                soup = BeautifulSoup(html, "html.parser")
+            for img in img_tags:
+                src = img.get('src')
+                if not src:
+                    continue
 
-                for img_tag in soup.find_all("img"):
-                    src = img_tag.get("src")
-                    if src and src.startswith("data:image"):
-                        header, encoded = src.split(",", 1)
-                        image_data = base64.b64decode(encoded)
-                        image = Image.open(io.BytesIO(image_data)).convert("L").resize((100, 100))
-                        np_image = np.array(image)
+                try:
+                    if await image_matches(src, reference_images):
+                        logger.info(f"✅ Найдено совпадение: {src}")
+                        matches.append((group_url, src))
+                        await send_telegram_message(f"🔍 Найдено совпадение в {group_url}\n{src}")
+                except Exception as e:
+                    logger.warning(f"Ошибка при сравнении изображений: {e}")
 
-                        for name, ref_image in reference_images:
-                            if is_similar(np_image, ref_image):
-                                matches.append(f"👁 Найдено совпадение с образцом '{name}' в группе:\n{url}")
-                                break
+            await page.close()
 
-            except Exception as e:
-                matches.append(f"⚠️ Ошибка при проверке группы {url}:\n{e}")
-
+        await context.close()
         await browser.close()
 
     return matches
