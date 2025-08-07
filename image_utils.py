@@ -4,11 +4,12 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
-from image_matcher import image_matches
+from image_utils import image_matches  # 🔧 Исправлено
 from telegram_notifier import send_telegram_message
 
 import logging
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 GROUP_URLS = [
     "https://www.facebook.com/share/g/16tri6YkoY/",
