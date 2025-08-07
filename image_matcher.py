@@ -1,17 +1,14 @@
-
 import os
 import numpy as np
 from PIL import Image
 from skimage.metrics import structural_similarity as ssim
 from config import MAX_DISTANCE
 
-SAMPLES_DIR = "samples"
-
-def load_reference_images():
+def load_reference_images(samples_dir):
     images = []
-    for filename in os.listdir(SAMPLES_DIR):
+    for filename in os.listdir(samples_dir):
         if filename.lower().endswith((".jpg", ".png", ".jpeg")):
-            path = os.path.join(SAMPLES_DIR, filename)
+            path = os.path.join(samples_dir, filename)
             images.append((filename, load_image(path)))
     return images
 
