@@ -3,7 +3,7 @@ opencv-python-headless
 Pillow
 telethon
 python-dotenv
-playwright==1.44.0
 scikit-image
 aiohttp
 beautifulsoup4
+playwright==1.44.0
