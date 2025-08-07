@@ -3,7 +3,7 @@ import asyncio
 from pathlib import Path
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
-from image_utils import image_matches
+from image_tools import image_matches
 from telegram_notifier import send_telegram_message
 import logging
 
