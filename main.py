@@ -1,29 +1,18 @@
+from facebook_checker import check_groups_for_images
+from telegram_notifier import send_telegram_message
+import time
+import traceback
 
-import asyncio
-import logging
-from utils.facebook_checker import check_groups_for_images
-from utils.image_matcher import load_reference_images
-from utils.telegram_notifier import send_telegram_message
-from utils.helpers import load_cookies
-
-CHECK_INTERVAL_MINUTES = 20
-
-async def main_loop():
-    logging.basicConfig(level=logging.INFO)
-    reference_images = load_reference_images()
-    cookies = load_cookies()
-
-    while True:
-        try:
-            matched = await check_groups_for_images(reference_images, cookies)
-            if matched:
-                await send_telegram_message(f"🔔 Найдено {len(matched)} совпадений среди изображений!")
-            else:
-                logging.info("Нет совпадений.")
-        except Exception as e:
-            logging.exception("Ошибка во время выполнения:")
-            await send_telegram_message(f"❌ Ошибка в боте: {e}")
-        await asyncio.sleep(CHECK_INTERVAL_MINUTES * 60)
+CHECK_INTERVAL_MINUTES = 20  # Интервал проверки
 
 if __name__ == "__main__":
-    asyncio.run(main_loop())
+    while True:
+        try:
+            matches = check_groups_for_images()
+            if matches:
+                for match in matches:
+                    send_telegram_message(match)
+        except Exception as e:
+            send_telegram_message("❌ Ошибка в боте:\n" + traceback.format_exc())
+
+        time.sleep(CHECK_INTERVAL_MINUTES * 60)
