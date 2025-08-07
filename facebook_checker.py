@@ -1,13 +1,12 @@
+# facebook_checker.py
 import asyncio
-import os
 from pathlib import Path
-
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
-from image_matcher import image_matches
+from image_utils import image_matches
 from telegram_notifier import send_telegram_message
-
 import logging
+
 logger = logging.getLogger(__name__)
 
 GROUP_URLS = [
@@ -16,7 +15,6 @@ GROUP_URLS = [
 ]
 
 EXECUTABLE_PATH = "/opt/render/project/src/.venv/lib/python3.13/site-packages/playwright/driver/package/.local-browsers/chromium_headless_shell-1181/chrome-linux/headless_shell"
-
 
 async def check_groups_for_images(reference_images: list[Path], cookies: list[dict]) -> list[tuple[str, str]]:
     matches = []
