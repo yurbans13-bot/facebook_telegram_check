@@ -3,7 +3,8 @@ import time
 import traceback
 
 from image_matcher import load_reference_images
-from facebook_checker import load_cookies, check_groups_for_images
+from config import load_cookies
+from facebook_checker import check_groups_for_images
 from telegram_notifier import send_telegram_message
 
 CHECK_INTERVAL_MINUTES = 20  # Интервал проверки
