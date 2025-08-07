@@ -1,22 +1,38 @@
+# config.py
 import json
+import os
+import sys
 
 # Telegram
 TELEGRAM_TOKEN = "8101121299:AAEUKSZjhkMi6k8ccHh3PQ7xKGalW3t2b_s"
 TELEGRAM_CHAT_ID = 243580570
 
-# Facebook
+# Facebook группы
 FACEBOOK_GROUP_URLS = [
     "https://www.facebook.com/share/g/16tri6YkoY/",
     "https://www.facebook.com/share/g/16ktKMdwjL/"
 ]
 
-# Сравнение изображений
+# Порог сравнения изображений (чем меньше, тем строже)
 MAX_DISTANCE = 8
 
-# Путь к cookies-файлу
 COOKIES_FILE = "all_cookies.txt"
 
-# Загрузка cookies из JSON-файла
 def load_cookies(path=COOKIES_FILE):
+    if not os.path.exists(path):
+        sys.exit(f"❌ Файл {path} не найден! Сначала создай его и вставь cookies из Opera.")
+
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = f.read().strip()
+        if not data:
+            sys.exit(f"❌ Файл {path} пустой! Экспортируй cookies из Opera в JSON и вставь сюда.")
+
+        try:
+            cookies = json.loads(data)
+        except json.JSONDecodeError:
+            sys.exit(f"❌ Cookies в {path} не являются валидным JSON! Проверь формат.")
+
+        if not isinstance(cookies, list) or not all("name" in c and "value" in c for c in cookies):
+            sys.exit("❌ Cookies имеют неправильную структуру. Экспортируй их через расширение Cookie-Editor.")
+
+        return cookies
