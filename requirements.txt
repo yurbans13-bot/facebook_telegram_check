@@ -6,4 +6,4 @@ python-dotenv
 scikit-image
 aiohttp
 beautifulsoup4
-playwright==1.44.0
+playwright
