@@ -1,9 +1,6 @@
-requests
-opencv-python-headless
-Pillow
-telethon
-python-dotenv
-scikit-image
-aiohttp
-beautifulsoup4
 playwright
+bs4
+Pillow
+numpy
+scikit-image
+requests
