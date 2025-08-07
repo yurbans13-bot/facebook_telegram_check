@@ -1,63 +1,50 @@
-import asyncio
 import os
-from pathlib import Path
+import numpy as np
+from PIL import Image
+from skimage.metrics import structural_similarity as ssim
+from config import MAX_DISTANCE
 
-from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
-from image_tools import image_matches
-from telegram_notifier import send_telegram_message
+def load_reference_images(directory="samples"):
+    images = []
+    for filename in os.listdir(directory):
+        if filename.lower().endswith((".jpg", ".jpeg", ".png")):
+            path = os.path.join(directory, filename)
+            image = load_image(path)
+            if image is not None:
+                images.append((filename, image))
+    return images
 
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+def load_image(path):
+    try:
+        img = Image.open(path).convert("L").resize((100, 100))  # grayscale
+        return np.array(img)
+    except Exception as e:
+        print(f"Ошибка при загрузке изображения {path}: {e}")
+        return None
 
-GROUP_URLS = [
-    "https://www.facebook.com/share/g/16tri6YkoY/",
-    "https://www.facebook.com/share/g/16ktKMdwjL/"
-]
+def compare_images(img1, img2):
+    try:
+        score = ssim(img1, img2)
+        return 1 - score  # чем меньше разница, тем ближе к 0
+    except Exception as e:
+        print(f"Ошибка сравнения изображений: {e}")
+        return 1  # максимально непохожи
 
-# ✅ Новый корректный путь к headless_shell
-EXECUTABLE_PATH = "/opt/render/.cache/ms-playwright/chromium_headless_shell-1181/chrome-linux/headless_shell"
+async def image_matches(image_url, reference_images):
+    try:
+        from io import BytesIO
+        import requests
 
+        response = requests.get(image_url, timeout=10)
+        response.raise_for_status()
+        image = Image.open(BytesIO(response.content)).convert("L").resize((100, 100))
+        test_img = np.array(image)
 
-async def check_groups_for_images(reference_images: list[Path], cookies: list[dict]) -> list[tuple[str, str]]:
-    matches = []
-
-    logger.info("Запуск браузера...")
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            executable_path=EXECUTABLE_PATH
-        )
-        context = await browser.new_context()
-        await context.add_cookies(cookies)
-
-        for group_url in GROUP_URLS:
-            page = await context.new_page()
-            logger.info(f"Проверка группы: {group_url}")
-            await page.goto(group_url, timeout=60000)
-
-            await page.wait_for_timeout(3000)
-            content = await page.content()
-            soup = BeautifulSoup(content, 'html.parser')
-            img_tags = soup.find_all('img')
-
-            for img in img_tags:
-                src = img.get('src')
-                if not src:
-                    continue
-
-                try:
-                    if await image_matches(src, reference_images):
-                        logger.info(f"✅ Найдено совпадение: {src}")
-                        matches.append((group_url, src))
-                        await send_telegram_message(f"🔍 Найдено совпадение в {group_url}\n{src}")
-                except Exception as e:
-                    logger.warning(f"Ошибка при сравнении изображений: {e}")
-
-            await page.close()
-
-        await context.close()
-        await browser.close()
-
-    return matches
+        for name, ref_img in reference_images:
+            distance = compare_images(test_img, ref_img)
+            if distance <= (MAX_DISTANCE / 100):
+                return True
+        return False
+    except Exception as e:
+        print(f"Ошибка загрузки или сравнения изображения {image_url}: {e}")
+        return False
