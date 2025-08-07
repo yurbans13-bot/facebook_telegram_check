@@ -1,65 +1,55 @@
-
 import os
-import time
-import hashlib
-import tempfile
+from pathlib import Path
 from playwright.async_api import async_playwright
-from PIL import Image
-from image_matcher import load_image, is_similar
 from config import FACEBOOK_GROUP_URLS
+from image_matcher import load_image, is_similar
+from bs4 import BeautifulSoup
+from PIL import Image
+import numpy as np
+import io
+import base64
 
 async def check_groups_for_images(reference_images, cookies):
     matches = []
+
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        # Указываем путь вручную к headless Chromium
+        chromium_path = Path.home() / ".playwright" / "chromium-1181" / "chrome-linux" / "chrome"
+
+        browser = await p.chromium.launch(
+            headless=True,
+            executable_path=str(chromium_path)
+        )
+
         context = await browser.new_context()
         await context.add_cookies(cookies)
 
+        page = await context.new_page()
+
         for url in FACEBOOK_GROUP_URLS:
-            page = await context.new_page()
-            await page.goto(url, timeout=60000)
+            try:
+                await page.goto(url, timeout=60000)
+                await page.wait_for_timeout(5000)  # дожидаемся полной загрузки
 
-            # Прокрутка и сбор изображений
-            for _ in range(3):
-                await page.mouse.wheel(0, 2000)
-                await page.wait_for_timeout(2000)
+                html = await page.content()
+                soup = BeautifulSoup(html, "html.parser")
 
-            images = await page.locator("img").element_handles()
-            for img_el in images:
-                try:
-                    src = await img_el.get_attribute("src")
-                    if not src:
-                        continue
-                    img_bytes = await download_image(page, src)
-                    if not img_bytes:
-                        continue
+                for img_tag in soup.find_all("img"):
+                    src = img_tag.get("src")
+                    if src and src.startswith("data:image"):
+                        header, encoded = src.split(",", 1)
+                        image_data = base64.b64decode(encoded)
+                        image = Image.open(io.BytesIO(image_data)).convert("L").resize((100, 100))
+                        np_image = np.array(image)
 
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-                        tmp.write(img_bytes)
-                        tmp_path = tmp.name
+                        for name, ref_image in reference_images:
+                            if is_similar(np_image, ref_image):
+                                matches.append(f"👁 Найдено совпадение с образцом '{name}' в группе:\n{url}")
+                                break
 
-                    candidate = load_image(tmp_path)
+            except Exception as e:
+                matches.append(f"⚠️ Ошибка при проверке группы {url}:\n{e}")
 
-                    for ref_name, ref_img in reference_images:
-                        if is_similar(candidate, ref_img):
-                            matches.append(src)
-                            break
-
-                    os.unlink(tmp_path)
-
-                except Exception:
-                    continue
-
-            await page.close()
-
-        await context.close()
         await browser.close()
-    return matches
 
-async def download_image(page, url):
-    try:
-        response = await page.request.get(url)
-        if response.ok:
-            return await response.body()
-    except:
-        return None
+    return matches
