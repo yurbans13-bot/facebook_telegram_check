@@ -1,21 +1,21 @@
 from facebook_checker import check_groups_for_images
 from telegram_notifier import send_telegram_message
-import asyncio
+import time
 import traceback
+import asyncio
 
 CHECK_INTERVAL_MINUTES = 20  # Интервал проверки
 
-async def main_loop():
-    while True:
-        try:
-            matches = check_groups_for_images()
-            if matches:
-                for match in matches:
-                    await send_telegram_message(match)  # <== ВАЖНО: await!
-        except Exception:
-            await send_telegram_message("❌ Ошибка в боте:\n" + traceback.format_exc())  # <== ВАЖНО: await!
-
-        await asyncio.sleep(CHECK_INTERVAL_MINUTES * 60)
+async def run_check():
+    try:
+        matches = check_groups_for_images()
+        if matches:
+            for match in matches:
+                await send_telegram_message(match)
+    except Exception:
+        await send_telegram_message("❌ Ошибка в боте:\n" + traceback.format_exc())
 
 if __name__ == "__main__":
-    asyncio.run(main_loop())
+    while True:
+        asyncio.run(run_check())
+        time.sleep(CHECK_INTERVAL_MINUTES * 60)
