@@ -1,42 +1,62 @@
+import asyncio
 import os
-import numpy as np
-from PIL import Image
-from skimage.metrics import structural_similarity as ssim
-from config import MAX_DISTANCE
-from io import BytesIO
-import requests
 from pathlib import Path
 
-def load_reference_images(directory="samples"):
-    images = []
-    for filename in os.listdir(directory):
-        if filename.lower().endswith((".jpg", ".png", ".jpeg")):
-            path = os.path.join(directory, filename)
-            images.append((filename, load_image(path)))
-    return images
+from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
+from image_matcher import image_matches
+from telegram_notifier import send_telegram_message
 
-def load_image(path):
-    img = Image.open(path).convert("L").resize((100, 100))
-    return np.array(img)
+import logging
+logger = logging.getLogger(__name__)
 
-def compare_images(img1, img2):
-    return 1 - ssim(img1, img2)
+GROUP_URLS = [
+    "https://www.facebook.com/share/g/16tri6YkoY/",
+    "https://www.facebook.com/share/g/16ktKMdwjL/"
+]
 
-def is_similar(img1, img2):
-    return compare_images(img1, img2) <= (MAX_DISTANCE / 100)
+# ✅ Новый корректный путь к headless_shell
+EXECUTABLE_PATH = "/opt/render/.cache/ms-playwright/chromium_headless_shell-1181/chrome-linux/headless_shell"
 
-def image_matches(image_url: str, reference_images: list[tuple[str, np.ndarray]]) -> bool:
-    try:
-        response = requests.get(image_url, timeout=10)
-        response.raise_for_status()
-        img = Image.open(BytesIO(response.content)).convert("L").resize((100, 100))
-        img_array = np.array(img)
 
-        for _, ref_img in reference_images:
-            if is_similar(img_array, ref_img):
-                return True
+async def check_groups_for_images(reference_images: list[Path], cookies: list[dict]) -> list[tuple[str, str]]:
+    matches = []
 
-    except Exception as e:
-        print(f"Ошибка при сравнении: {e}")
+    logger.info("Запуск браузера...")
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            executable_path=EXECUTABLE_PATH
+        )
+        context = await browser.new_context()
+        await context.add_cookies(cookies)
 
-    return False
+        for group_url in GROUP_URLS:
+            page = await context.new_page()
+            logger.info(f"Проверка группы: {group_url}")
+            await page.goto(group_url, timeout=60000)
+
+            await page.wait_for_timeout(3000)
+            content = await page.content()
+            soup = BeautifulSoup(content, 'html.parser')
+            img_tags = soup.find_all('img')
+
+            for img in img_tags:
+                src = img.get('src')
+                if not src:
+                    continue
+
+                try:
+                    if await image_matches(src, reference_images):
+                        logger.info(f"✅ Найдено совпадение: {src}")
+                        matches.append((group_url, src))
+                        await send_telegram_message(f"🔍 Найдено совпадение в {group_url}\n{src}")
+                except Exception as e:
+                    logger.warning(f"Ошибка при сравнении изображений: {e}")
+
+            await page.close()
+
+        await context.close()
+        await browser.close()
+
+    return matches
