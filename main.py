@@ -11,9 +11,9 @@ async def main_loop():
             matches = check_groups_for_images()
             if matches:
                 for match in matches:
-                    await send_telegram_message(match)
+                    await send_telegram_message(match)  # <== ВАЖНО: await!
         except Exception:
-            await send_telegram_message("❌ Ошибка в боте:\n" + traceback.format_exc())
+            await send_telegram_message("❌ Ошибка в боте:\n" + traceback.format_exc())  # <== ВАЖНО: await!
 
         await asyncio.sleep(CHECK_INTERVAL_MINUTES * 60)
 
