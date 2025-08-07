@@ -2,6 +2,8 @@ services:
   - type: worker
     name: facebook_telegram_check
     env: python
-    plan: starter  # или free, если используешь бесплатный план
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python main.py"
+    plan: starter  # Или free, если на бесплатном плане
+    buildCommand: |
+      pip install -r requirements.txt
+      playwright install chromium
+    startCommand: python main.py
