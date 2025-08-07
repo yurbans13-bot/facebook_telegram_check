@@ -4,4 +4,5 @@ Pillow
 telethon
 python-dotenv
 playwright
-scikit-image==0.22.0
+scikit-image
+aiohttp
