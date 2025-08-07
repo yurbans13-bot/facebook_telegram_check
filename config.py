@@ -1,4 +1,6 @@
-
+def load_cookies(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read().strip()
 # Telegram
 TELEGRAM_TOKEN = "8101121299:AAEUKSZjhkMi6k8ccHh3PQ7xKGalW3t2b_s"
 TELEGRAM_CHAT_ID = 243580570
