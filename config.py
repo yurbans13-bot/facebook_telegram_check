@@ -4,7 +4,7 @@ import os
 import sys
 
 # Telegram
-TELEGRAM_TOKEN = "8101121299:AAEUKSZjhkMi6k8ccHh3PQ7xKGalW3t2b_s"
+TELEGRAM_TOKEN = "8146445783:AAE7XOUZB8Evil2pKIl1g0FczpBndbGbVek"
 TELEGRAM_CHAT_ID = 243580570
 
 # Facebook группы
